@@ -82,7 +82,7 @@ def score_flow(flow, records):
     delay_score = 0
     Tdelay = 10
     for t, _, _, z in records:
-        delay_score += (Tdelay / (t + Tdelay)) * (z / s_total)
+        delay_score += (Tdelay / (t + Tdelay - flow['t_start'])) * (z / s_total)
 
     # 3. Transmission Distance Score
     dist_score = 0
@@ -107,6 +107,14 @@ def score_flow(flow, records):
         0.3 * dist_score +
         0.1 * landing_score
     )
+
+    print(f"Flow {flow['id']} score breakdown:")
+    print(f"  Total U2G Traffic Score: {total_traffic_score:.4f}")
+    print(f"  Traffic Delay Score:     {delay_score:.4f}")
+    print(f"  Distance Score:          {dist_score:.4f}")
+    print(f"  Landing Point Score:     {landing_score:.4f}")
+    print(f"  => Final Flow Score:     {flow_score:.3f}\n")
+
     return flow_score, s_transmitted
 
 
