@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import colorsys
 
 class Drone:
     def __init__(self, x, y, B, phi):
@@ -60,11 +61,29 @@ def read_output(out_file_name):
             output[fid] = records
     return output
 
-def build_tensor(output, T, M, N):
-    data = np.zeros((T, M, N), dtype=float)
-    for schedules in output.values():
+_GOLDEN = 0.618033988749895  # 1/phi^2
+
+def id_intensity_to_rgb(obj_id: int, intensity: int,
+                        max_intensity: int = 100,
+                        sat: float = 0.85,
+                        v_min: float = 0.35,
+                        v_max: float = 0.95):
+    """
+    Map (id, intensity) -> RGB in [0,1] using HSV.
+    - Hue from id via golden-angle spacing.
+    - Value (brightness) increases monotonically with intensity.
+    """
+    h = (obj_id * _GOLDEN) % 1.0
+    t = 0.0 if max_intensity <= 1 else (intensity - 1) / (max_intensity - 1)
+    v = v_min + (v_max - v_min) * t         # monotone brightness
+    r, g, b = np.clip(colorsys.hsv_to_rgb(h, sat, v), 0, 1)
+    return r, g, b
+
+def build_tensor(output, T, M, N, maxB):
+    data = np.ones((T, M, N, 3), dtype=float)
+    for flow, schedules in output.items():
         for t, x, y, z in schedules:
-            data[t, x, y] = z
+            data[t, x, y] = id_intensity_to_rgb(flow, z)
     return data
 
 def setup_pixel_grid(ax, ny, nx):
@@ -83,28 +102,29 @@ def setup_pixel_grid(ax, ny, nx):
     # Keep grid above image (useful if you later switch to blit=True)
     ax.set_axisbelow(False)
 
-def init_figure(data, vmin, vmax):
+def init_figure(data):
+    if data.ndim != 4 or data.shape[-1] != 3:
+        raise ValueError("Expected data of shape (T, M, N, 3) for RGB video frames.")
+
+    T, M, N, _ = data.shape
+
     fig, ax = plt.subplots()
     im = ax.imshow(
-        data,
-        vmin=vmin, vmax=vmax,
-        cmap='coolwarm',
+        data[0],
         interpolation='nearest',
         origin='lower'
     )
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label("z", rotation=0, labelpad=10)
-    ny, nx = data.shape
-    setup_pixel_grid(ax, ny, nx)
-    title = ax.set_title("Frame 0")
+
+    setup_pixel_grid(ax, M, N)  # keep grid visualisation
+    title = ax.set_title(f"Frame 0 / {T-1}")
+
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     fig.tight_layout()
     return fig, ax, im, title
 
-def animate_tensor(data, interval_ms=250, use_blit=False):
-    vmin, vmax = data.min(), data.max()
-    fig, ax, im, title = init_figure(data[0], vmin, vmax)
+def animate_tensor(data, interval_ms, use_blit=False):
+    fig, ax, im, title = init_figure(data)
 
     if use_blit:
         # Make animated artists explicit when blitting
@@ -135,11 +155,12 @@ def main():
     out_file_name = "out.txt"
     M, N, T, drones, flows = read_input(in_file_name)
     output = read_output(out_file_name)
-    data = build_tensor(output, T, M, N)
+    maxB = max(drone.B for row in drones for drone in row)
+    data = build_tensor(output, T, M, N, maxB)
 
 
-    interval_ms = 250
-    fig, ani = animate_tensor(data, interval_ms=interval_ms, use_blit=False)
+    interval_ms = 500
+    fig, ani = animate_tensor(data, interval_ms, use_blit=False)
     plt.show()
     # save(ani)
 
