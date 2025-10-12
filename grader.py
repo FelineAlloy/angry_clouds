@@ -26,14 +26,14 @@ def read_input():
         drones = [[None]*M for _ in range(N)]
         for _ in range(M * N):
             x, y, B, phi = f.readline().split()
-            drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
+            drones[int(y)][int(x)] = Drone(int(x), int(y), float(B), int(phi))
 
-        flows = []
+        flows = {}
         for _ in range(FN):
             parts = f.readline().split()
             f_id = int(parts[0])
             x, y, t_start, s, m1, n1, m2, n2 = map(int, parts[1:])
-            flows.append({
+            flows[f_id] = {
                 'id': f_id,
                 'x': x,
                 'y': y,
@@ -43,7 +43,7 @@ def read_input():
                 'n1': n1,
                 'm2': m2,
                 'n2': n2
-            })
+            }
     return M, N, T, drones, flows
 
 
@@ -124,9 +124,8 @@ def main():
 
     total_weighted = 0
     total_size = 0
-    for flow in flows:
-        fid = flow['id']
-        records = output.get(fid, [])
+    for fid, records in output.items():
+        flow = flows.get(fid, [])
         fscore, sent = score_flow(flow, records)
         total_weighted += fscore * flow['s']
         total_size += flow['s']
