@@ -1,7 +1,7 @@
 import math
 
-in_file_name = "in.in"
-out_file_name = "out.out"
+in_file_name = "in.txt"
+out_file_name = "out.txt"
 
 class Drone:
     def __init__(self, x, y, B, phi):
@@ -9,24 +9,33 @@ class Drone:
         self.y = y
         self.B = B
         self.phi = phi
+        self.bandwidth_used_in = dict()
 
     def b(self, t):
         t = (t + self.phi) % 10
         if t < 2 or t > 7:
-            return 0
+            d = 0
         elif t == 2 or t == 7:
-            return self.B / 2
+            d = self.B / 2
         else:
-            return self.B
+            d = self.B
+
+        if d > 0 and t in self.bandwidth_used_in :
+            return d - self.bandwidth_used_in[t]
+        
+        return d
+
 
 def read_input():
     with open(in_file_name) as f:
         M, N, FN, T = map(int, f.readline().split())
 
-        drones = [[None]*M for _ in range(N)]
+        # drones = [[None]*M for _ in range(N)]
+        drones = []
         for _ in range(M * N):
             x, y, B, phi = f.readline().split()
-            drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
+            # drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
+            drones.append(Drone(int(x), int(y), float(B), int(phi)))
 
         flows = []
         for _ in range(FN):
@@ -51,27 +60,37 @@ M, N, T, drones, flows = read_input()
 active_flows = []
 for time in range(T) :
     for flow in flows :
-        if flow['t_start'] >= time :
+        if flow['t_start'] <= time :
             active_flows.append(flow)
             flows.remove(flow)
 
     for flow in active_flows :
+        print(flow, time)
+        if flow['s'] == 0 : continue
         if 'prev' not in flow :
             flow['prev'] = None
 
-        p_x, p_y = flow['prev']
-        prev_drone = drones[p_y][p_x]
+        if 'hist' not in flow :
+            flow['hist'] = []
 
-        if prev_drone.b(T) == prev_drone.B :
+        prev_drone = flow['prev']
+
+        if prev_drone and prev_drone.b(time) == prev_drone.B :
             curr_drone = prev_drone
 
         else :
-            eligible_drones = [drones[y][x] for y in range(flow['m2'], flow['n2'] + 1) for x in range(flow['m1'], flow['n1'] + 1) if drones[y][x].b(T) > 0]
-            curr_drone = eligible_drones.max(key = lambda x: x.b(T))
+            eligible_drones = [d for d in drones if d.x in range(flow['m1'], flow['n1']+1) and d.y in range(flow['m2'], flow['n2']+1) and d.b(time)>0]
+            curr_drone = max(eligible_drones, key = lambda x: x.b(time))
 
-        
+        flow['prev'] = curr_drone
+        transmitted = min(curr_drone.b(time), flow['s'])
+        flow['s'] -= transmitted
+        curr_drone.bandwidth_used_in[time] = transmitted
 
-            
-
-
-
+        flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {transmitted}')
+        if flow['s'] == 0 :
+            with open(out_file_name, 'a') as f :
+                s = f'{flow['id']} {len(flow['hist'])}\n'
+                f.write(s)
+                for h in flow['hist'] :
+                    f.write(f'{h}\n')
