@@ -1,14 +1,7 @@
 import random
-from test import MAX_M, MAX_N, MAX_FN, MAX_T, MAX_B, MAX_Q_TOTAL
+from test import M, N, FN, T, MAX_B, MAX_Q_TOTAL
 
-# ===============================
-# TESTCASE RANDOM SETTINGS
-# ===============================
-# You can adjust the scaling factors below if you want smaller test cases
-M = random.randint(2, MAX_M)             # grid width
-N = random.randint(2, MAX_N)             # grid height
-FN = random.randint(1, MAX_FN)           # number of flows
-T = random.randint(2, MAX_T)             # simulation duration (seconds)
+
 
 OUT_FILE = "in1.in"
 

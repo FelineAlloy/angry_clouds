@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import random
 from pathlib import Path
 
 # ===============================
@@ -11,6 +12,15 @@ MAX_FN = 5000 #5000       # Max number of flows
 MAX_T = 500         # Max simulation time (seconds)
 MAX_B = 10 #1000.0      # Max peak bandwidth per UAV (Mbps)
 MAX_Q_TOTAL = 100 #3000  # Max total traffic volume per flow (Mbits)
+
+# ===============================
+# TESTCASE RANDOM SETTINGS
+# ===============================
+# You can adjust the scaling factors below if you want smaller test cases
+M = random.randint(2, MAX_M)             # grid width
+N = random.randint(2, MAX_N)             # grid height
+FN = random.randint(1, MAX_FN)           # number of flows
+T = random.randint(2, MAX_T)             # simulation duration (seconds)
 # ===============================
 # ===============================
 
