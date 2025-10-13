@@ -81,8 +81,6 @@ def init_figure(data, numbers=None, fmt="{:.0f}"):
     )
     setup_pixel_grid(ax, M, N)
     title = ax.set_title(f"Frame 0 / {T-1}")
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
 
     texts = None
     if numbers is not None:
@@ -138,17 +136,18 @@ def save(ani):
     with open("animation.html", "w", encoding="utf-8") as f:
         f.write(html_str)
 
-def main():
+def visualize():
     in_file_name = "in.in"
     out_file_name = "out.out"
     M, N, T, drones, flows = read_input(in_file_name)
     output = read_output(out_file_name)
     raw_data, data = build_tensor(output, T, M, N)
-    print(raw_data.shape, data.shape)
-    interval_ms = 500
+    interval_ms = 250
     fig, ani = animate_tensor(data, interval_ms=interval_ms, use_blit=False, numbers=raw_data, fmt="{:.1f}")
     plt.show()
-    # save(ani)
+
+def main():
+    visualize()
 
 if __name__ == '__main__':
     main()

@@ -4,7 +4,6 @@ def hop_distance(x1, y1, x2, y2):
     # Manhattan distance (grid hops)
     return abs(x1 - x2) + abs(y1 - y2)
 
-
 def score_flow(flow, records):
     if not records:
         return 0
@@ -54,11 +53,7 @@ def score_flow(flow, records):
 
     return flow_score, s_transmitted
 
-
-def main():
-    test()
-
-def test():
+def grade():
     in_file_name = "in.in"
     out_file_name = "out.out"
     M, N, T, drones, flows = read_input(in_file_name)
@@ -75,6 +70,9 @@ def test():
     total_score = total_weighted / total_size if total_size else 0
     print(f"Total Score: {total_score:.3f}")
 
+
+def main():
+    grade()
 
 if __name__ == "__main__":
     main()

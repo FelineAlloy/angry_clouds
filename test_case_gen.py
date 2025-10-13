@@ -1,6 +1,4 @@
 import random
-from main import main as m
-from grader import test
 
 # ===============================
 # CONFIGURABLE MAX CONSTANTS
@@ -66,19 +64,18 @@ def write_input_file(M, N, FN, T, drones, flows, filename=INPUT_FILE):
             f.write(" ".join(map(str, flow)) + "\n")
 
 
-def main():
+def generate_test(M, N, FN, T):
     drones = generate_drones(M, N)
     flows = generate_flows(FN, M, N, T)
     write_input_file(M, N, FN, T, drones, flows)
+
+def main():
+    generate_test()
     print(f"✅ Random test case generated: '{INPUT_FILE}'")
     print(f"  Grid: {M}×{N}")
     print(f"  Flows: {FN}")
     print(f"  Time duration: {T}s")
     print(f"  Max B: {MAX_B} Mbps, Max Flow Size: {MAX_Q_TOTAL} Mbits")
-
-    m()
-    test()
-
 
 if __name__ == "__main__":
     main()

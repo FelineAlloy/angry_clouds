@@ -1,6 +1,6 @@
 from file_utils import read_input, read_output
 
-def main():
+def solve():
     in_file_name = "in.in"
     out_file_name = "out.out"
 
@@ -64,6 +64,9 @@ def main():
                     out_file.write(f'{h}\n')
 
     out_file.close()
+
+def main():
+    solve()
 
 if __name__ == '__main__':
     main()
