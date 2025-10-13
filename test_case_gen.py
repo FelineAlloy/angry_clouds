@@ -3,9 +3,9 @@ import random
 # ===============================
 # CONFIGURABLE MAX CONSTANTS
 # ===============================
-MAX_M = 10 #70          # Max grid width
-MAX_N = 10 #70          # Max grid height
-MAX_FN = 1 #5000       # Max number of flows
+MAX_M = 70 #70          # Max grid width
+MAX_N = 70 #70          # Max grid height
+MAX_FN = 5000 #5000       # Max number of flows
 MAX_T = 500         # Max simulation time (seconds)
 MAX_B = 10 #1000.0      # Max peak bandwidth per UAV (Mbps)
 MAX_Q_TOTAL = 100 #3000  # Max total traffic volume per flow (Mbits)
