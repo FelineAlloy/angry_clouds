@@ -4,12 +4,11 @@ def read_input(in_file_name):
     with open(in_file_name) as f:
         M, N, FN, T = map(int, f.readline().split())
 
-        drones = [[None]*M for _ in range(N)]
-        # drones = []
+        drones = []
         for _ in range(M * N):
             x, y, B, phi = f.readline().split()
-            drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
-            # drones.append(Drone(int(x), int(y), float(B), int(phi)))
+            drones.append(Drone(int(x), int(y), float(B), int(phi)))
+
         flows = {}
         for _ in range(FN):
             parts = f.readline().split()

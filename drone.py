@@ -4,12 +4,15 @@ class Drone:
         self.y = y
         self.B = B
         self.phi = phi
+        self.bandwidth_used_in = dict()
 
     def b(self, t):
         t = (t + self.phi) % 10
         if t < 2 or t > 7:
-            return 0
+            bw = 0
         elif t == 2 or t == 7:
-            return self.B / 2
+            bw = self.B / 2
         else:
-            return self.B
+            bw = self.B
+
+        return bw - self.bandwidth_used_in[t] if t in self.bandwidth_used_in else bw

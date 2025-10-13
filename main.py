@@ -1,75 +1,65 @@
-import math
-from drone import Drone
-from file_utils import read_output
+from file_utils import read_input, read_output
 
-in_file_name = "in.in"
+in_file_name = "in1.in"
 out_file_name = "out.out"
 
-def read_input(in_file_name):
-    with open(in_file_name) as f:
-        M, N, FN, T = map(int, f.readline().split())
-
-        # drones = [[None]*M for _ in range(N)]
-        drones = []
-        for _ in range(M * N):
-            x, y, B, phi = f.readline().split()
-            # drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
-            drones.append(Drone(int(x), int(y), float(B), int(phi)))
-        flows = {}
-        for _ in range(FN):
-            parts = f.readline().split()
-            f_id = int(parts[0])
-            x, y, t_start, s, m1, n1, m2, n2 = map(int, parts[1:])
-            flows[f_id] = {
-                'id': f_id,
-                'x': x,
-                'y': y,
-                't_start': t_start,
-                's': s,
-                'm1': m1,
-                'n1': n1,
-                'm2': m2,
-                'n2': n2
-            }
-    return M, N, T, drones, flows
-
+out_file = open(out_file_name, 'w')
 
 M, N, T, drones, flows = read_input(in_file_name)
 
-active_flows = []
 for time in range(T) :
-    for flow in flows:
-        if flow['t_start'] <= time :
+    # Stores all the flows that are active at time = T.
+    active_flows = []
+    for _, flow in flows.items():
+        # Add do active_flows iff active in time and flow has data to transmit.
+        if flow['t_start'] <= time and flow['s'] > 0 :
             active_flows.append(flow)
-            flows.remove(flow)
 
+    # Iterate over all the active flows
     for flow in active_flows :
-        print(flow, time)
+        # Skip flow if it has transmitted all its data already
         if flow['s'] == 0 : continue
+
+        # If the flow had not previously partially transmitted its data through a drone then assign the flow a attribute
+        # 'prev' which stores the previously used drone. 
         if 'prev' not in flow :
             flow['prev'] = None
 
+        # This attribute will store the output logs for the flow.
         if 'hist' not in flow :
             flow['hist'] = []
 
+        
         prev_drone = flow['prev']
 
+        # Stick to prev drone if it exists and is at peak bw to minimise switch cost. 
         if prev_drone and prev_drone.b(time) == prev_drone.B :
             curr_drone = prev_drone
 
         else :
-            eligible_drones = [d for d in drones if d.x in range(flow['m1'], flow['n1']+1) and d.y in range(flow['m2'], flow['n2']+1) and d.b(time)>0]
-            curr_drone = max(eligible_drones, key = lambda x: x.b(time))
+            # Build array of eleigible drones and pick the one with max bw to offer (GREEDY APPROACH).
+            eligible_drones = [d for d in drones if d.x in range(flow['m1'], flow['m2']+1) and d.y in range(flow['n1'], flow['n2']+1) and d.b(time)>0]
+            curr_drone = max(eligible_drones, key = lambda x: x.b(time)) if eligible_drones else None
 
+        # Skip to next flow if no available drones.
+        if not curr_drone : 
+            continue
+
+        # Compute the amount of data to transmit, bounded by drone bw and data to be transmitted.
         flow['prev'] = curr_drone
         transmitted = min(curr_drone.b(time), flow['s'])
         flow['s'] -= transmitted
+
+        # Store the time and amount of data transmitted at said time.
         curr_drone.bandwidth_used_in[time] = transmitted
 
+        # Log activity for output
         flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {transmitted}')
+
+        # If all flow data is transmitted then write to output
         if flow['s'] == 0 :
-            with open(out_file_name, 'a') as f :
-                s = f"{flow['id']} {len(flow['hist'])}\n"
-                f.write(s)
-                for h in flow['hist'] :
-                    f.write(f'{h}\n')
+            out_file.write(f"{flow['id']} {len(flow['hist'])}\n")
+            for h in flow['hist'] :
+                out_file.write(f'{h}\n')
+
+out_file.close()
