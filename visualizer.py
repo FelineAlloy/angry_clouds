@@ -25,11 +25,13 @@ def id_intensity_to_rgb(obj_id: int, intensity: int,
     return r, g, b
 
 def build_tensor(output, T, M, N):
+    raw_data = np.zeros((T, M, N), dtype=float)
     data = np.ones((T, M, N, 3), dtype=float)
     for flow, schedules in output.items():
         for t, x, y, z in schedules:
+            raw_data[t, x, y] = z
             data[t, x, y] = id_intensity_to_rgb(flow, z)
-    return data
+    return raw_data, data
 
 def setup_pixel_grid(ax, ny, nx):
     """Draw a pixel grid with cell borders and ticks centered on pixels."""
@@ -141,10 +143,10 @@ def main():
     out_file_name = "out.out"
     M, N, T, drones, flows = read_input(in_file_name)
     output = read_output(out_file_name)
-    data = build_tensor(output, T, M, N)
-
+    raw_data, data = build_tensor(output, T, M, N)
+    print(raw_data.shape, data.shape)
     interval_ms = 500
-    fig, ani = animate_tensor(data, interval_ms=200, use_blit=False, numbers=nums, fmt="{:.1f}")
+    fig, ani = animate_tensor(data, interval_ms=interval_ms, use_blit=False, numbers=raw_data, fmt="{:.1f}")
     plt.show()
     # save(ani)
 

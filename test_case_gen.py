@@ -1,4 +1,6 @@
 import random
+from main import main as m
+from grader import test
 
 # ===============================
 # CONFIGURABLE MAX CONSTANTS
@@ -18,7 +20,7 @@ M = random.randint(2, MAX_M)             # grid width
 N = random.randint(2, MAX_N)             # grid height
 FN = random.randint(1, MAX_FN)           # number of flows
 T = random.randint(2, MAX_T)             # simulation duration (seconds)
-OUT_FILE = "in1.in"
+INPUT_FILE = "in.in"
 
 
 def generate_drones(M, N):
@@ -54,7 +56,7 @@ def generate_flows(FN, M, N, T):
     return flows
 
 
-def write_input_file(M, N, FN, T, drones, flows, filename=OUT_FILE):
+def write_input_file(M, N, FN, T, drones, flows, filename=INPUT_FILE):
     """Write input file according to Huawei format."""
     with open(filename, "w") as f:
         f.write(f"{M} {N} {FN} {T}\n")
@@ -68,11 +70,14 @@ def main():
     drones = generate_drones(M, N)
     flows = generate_flows(FN, M, N, T)
     write_input_file(M, N, FN, T, drones, flows)
-    print(f"✅ Random test case generated: '{OUT_FILE}'")
+    print(f"✅ Random test case generated: '{INPUT_FILE}'")
     print(f"  Grid: {M}×{N}")
     print(f"  Flows: {FN}")
     print(f"  Time duration: {T}s")
     print(f"  Max B: {MAX_B} Mbps, Max Flow Size: {MAX_Q_TOTAL} Mbits")
+
+    m()
+    test()
 
 
 if __name__ == "__main__":
