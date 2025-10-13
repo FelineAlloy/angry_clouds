@@ -1,11 +1,9 @@
-import math
 from drone import Drone
 from file_utils import read_input, read_output
 
 def hop_distance(x1, y1, x2, y2):
     # Manhattan distance (grid hops)
     return abs(x1 - x2) + abs(y1 - y2)
-
 
 def score_flow(flow, records):
     if not records:
@@ -55,7 +53,6 @@ def score_flow(flow, records):
     print(f"  => Final Flow Score:     {flow_score:.3f}\n")
 
     return flow_score, s_transmitted
-
 
 def main():
     in_file_name = "in1.in"
