@@ -1,32 +1,11 @@
 import math
+from drone import Drone
+from file_utils import read_output
 
-in_file_name = "in.txt"
-out_file_name = "out.txt"
+in_file_name = "in.in"
+out_file_name = "out.out"
 
-class Drone:
-    def __init__(self, x, y, B, phi):
-        self.x = x
-        self.y = y
-        self.B = B
-        self.phi = phi
-        self.bandwidth_used_in = dict()
-
-    def b(self, t):
-        t = (t + self.phi) % 10
-        if t < 2 or t > 7:
-            d = 0
-        elif t == 2 or t == 7:
-            d = self.B / 2
-        else:
-            d = self.B
-
-        if d > 0 and t in self.bandwidth_used_in :
-            return d - self.bandwidth_used_in[t]
-        
-        return d
-
-
-def read_input():
+def read_input(in_file_name):
     with open(in_file_name) as f:
         M, N, FN, T = map(int, f.readline().split())
 
@@ -36,13 +15,12 @@ def read_input():
             x, y, B, phi = f.readline().split()
             # drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
             drones.append(Drone(int(x), int(y), float(B), int(phi)))
-
-        flows = []
+        flows = {}
         for _ in range(FN):
             parts = f.readline().split()
             f_id = int(parts[0])
             x, y, t_start, s, m1, n1, m2, n2 = map(int, parts[1:])
-            flows.append({
+            flows[f_id] = {
                 'id': f_id,
                 'x': x,
                 'y': y,
@@ -52,14 +30,15 @@ def read_input():
                 'n1': n1,
                 'm2': m2,
                 'n2': n2
-            })
+            }
     return M, N, T, drones, flows
 
-M, N, T, drones, flows = read_input()
+
+M, N, T, drones, flows = read_input(in_file_name)
 
 active_flows = []
 for time in range(T) :
-    for flow in flows :
+    for flow in flows:
         if flow['t_start'] <= time :
             active_flows.append(flow)
             flows.remove(flow)
@@ -90,7 +69,7 @@ for time in range(T) :
         flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {transmitted}')
         if flow['s'] == 0 :
             with open(out_file_name, 'a') as f :
-                s = f'{flow['id']} {len(flow['hist'])}\n'
+                s = f"{flow['id']} {len(flow['hist'])}\n"
                 f.write(s)
                 for h in flow['hist'] :
                     f.write(f'{h}\n')

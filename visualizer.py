@@ -1,65 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib.patheffects as patheffects
 import colorsys
-
-class Drone:
-    def __init__(self, x, y, B, phi):
-        self.x = x
-        self.y = y
-        self.B = B
-        self.phi = phi
-
-    def b(self, t):
-        t = (t + self.phi) % 10
-        if t < 2 or t > 7:
-            return 0
-        elif t == 2 or t == 7:
-            return self.B / 2
-        else:
-            return self.B
-
-def read_input(in_file_name):
-    with open(in_file_name) as f:
-        M, N, FN, T = map(int, f.readline().split())
-
-        drones = [[None]*M for _ in range(N)]
-        for _ in range(M * N):
-            x, y, B, phi = f.readline().split()
-            drones[int(x)][int(y)] = Drone(int(x), int(y), float(B), int(phi))
-
-        flows = []
-        for _ in range(FN):
-            parts = f.readline().split()
-            f_id = int(parts[0])
-            x, y, t_start, s, m1, n1, m2, n2 = map(int, parts[1:])
-            flows.append({
-                'id': f_id,
-                'x': x,
-                'y': y,
-                't_start': t_start,
-                's': s,
-                'm1': m1,
-                'n1': n1,
-                'm2': m2,
-                'n2': n2
-            })
-    return M, N, T, drones, flows
-
-def read_output(out_file_name):
-    with open(out_file_name) as f:
-        output = {}
-        while True:
-            header = f.readline()
-            if not header:
-                break
-            fid, p = map(int, header.split())
-            records = []
-            for _ in range(p):
-                t, x, y, z = f.readline().split()
-                records.append((int(t), int(x), int(y), float(z)))
-            output[fid] = records
-    return output
+from file_utils import read_input, read_output
 
 _GOLDEN = 0.618033988749895  # 1/phi^2
 
@@ -76,10 +20,11 @@ def id_intensity_to_rgb(obj_id: int, intensity: int,
     h = (obj_id * _GOLDEN) % 1.0
     t = 0.0 if max_intensity <= 1 else (intensity - 1) / (max_intensity - 1)
     v = v_min + (v_max - v_min) * t         # monotone brightness
-    r, g, b = np.clip(colorsys.hsv_to_rgb(h, sat, v), 0, 1)
+    r, g, b = colorsys.hsv_to_rgb(h, sat, v)
+    r, g, b = np.clip([r, g, b], 0, 1)
     return r, g, b
 
-def build_tensor(output, T, M, N, maxB):
+def build_tensor(output, T, M, N):
     data = np.ones((T, M, N, 3), dtype=float)
     for flow, schedules in output.items():
         for t, x, y, z in schedules:
@@ -102,11 +47,29 @@ def setup_pixel_grid(ax, ny, nx):
     # Keep grid above image (useful if you later switch to blit=True)
     ax.set_axisbelow(False)
 
-def init_figure(data):
+def _make_text_overlay(ax, M, N, fmt="{:.0f}", fontsize=10):
+    texts = []
+    for i in range(M):
+        row = []
+        for j in range(N):
+            txt = ax.text(
+                j, i, "", ha="center", va="center", zorder=3,
+                fontsize=fontsize, clip_on=True,
+                path_effects=[patheffects.withStroke(linewidth=2, foreground="white")]
+            )
+            row.append(txt)
+        texts.append(row)
+    return texts, fmt
+
+def init_figure(data, numbers=None, fmt="{:.0f}"):
     if data.ndim != 4 or data.shape[-1] != 3:
         raise ValueError("Expected data of shape (T, M, N, 3) for RGB video frames.")
 
     T, M, N, _ = data.shape
+
+    if numbers is not None:
+        if numbers.shape != (T, M, N):
+            raise ValueError(f"`numbers` must have shape (T, M, N), got {numbers.shape}")
 
     fig, ax = plt.subplots()
     im = ax.imshow(
@@ -114,27 +77,50 @@ def init_figure(data):
         interpolation='nearest',
         origin='lower'
     )
-
-    setup_pixel_grid(ax, M, N)  # keep grid visualisation
+    setup_pixel_grid(ax, M, N)
     title = ax.set_title(f"Frame 0 / {T-1}")
-
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    fig.tight_layout()
-    return fig, ax, im, title
 
-def animate_tensor(data, interval_ms, use_blit=False):
-    fig, ax, im, title = init_figure(data)
+    texts = None
+    if numbers is not None:
+        texts, fmt = _make_text_overlay(ax, M, N, fmt=fmt)
+
+        # initialize frame-0 labels
+        nums0 = numbers[0]
+        for i in range(M):
+            for j in range(N):
+                texts[i][j].set_text(fmt.format(nums0[i, j]))
+
+    fig.tight_layout()
+    return fig, ax, im, title, texts
+
+def animate_tensor(data, interval_ms, use_blit=False, numbers=None, fmt="{:.0f}"):
+    fig, ax, im, title, texts = init_figure(data, numbers=numbers, fmt=fmt)
+
+    animated_artists = [im, title]
+    if texts is not None:
+        # mark all text artists animated when blitting
+        for row in texts:
+            for t in row:
+                animated_artists.append(t)
 
     if use_blit:
-        # Make animated artists explicit when blitting
-        im.set_animated(True)
-        title.set_animated(True)
+        for a in animated_artists:
+            a.set_animated(True)
 
     def update(t):
         im.set_data(data[t])
         title.set_text(f"Frame {t} / {data.shape[0]-1}")
-        return (im, title) if use_blit else tuple()
+
+        if numbers is not None:
+            nums = numbers[t]
+            M, N = nums.shape
+            for i in range(M):
+                for j in range(N):
+                    texts[i][j].set_text(fmt.format(nums[i, j]))
+
+        return tuple(animated_artists) if use_blit else tuple()
 
     ani = animation.FuncAnimation(
         fig,
@@ -151,16 +137,14 @@ def save(ani):
         f.write(html_str)
 
 def main():
-    in_file_name = "in.txt"
-    out_file_name = "out.txt"
+    in_file_name = "in.in"
+    out_file_name = "out.out"
     M, N, T, drones, flows = read_input(in_file_name)
     output = read_output(out_file_name)
-    maxB = max(drone.B for row in drones for drone in row)
-    data = build_tensor(output, T, M, N, maxB)
-
+    data = build_tensor(output, T, M, N)
 
     interval_ms = 500
-    fig, ani = animate_tensor(data, interval_ms, use_blit=False)
+    fig, ani = animate_tensor(data, interval_ms=200, use_blit=False, numbers=nums, fmt="{:.1f}")
     plt.show()
     # save(ani)
 
