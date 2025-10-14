@@ -63,7 +63,7 @@ def summarize_case_params(case_path):
     print(f"Max B: {MAX_B} Mbps, Max Flow Size: {MAX_Q_TOTAL} Mbits")
 
 def main():
-    case_path = "in1.in" 
+    case_path = "in.in" 
     sub_out = "out.out" 
 
     generate_case(case_path)

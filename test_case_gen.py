@@ -3,7 +3,7 @@ from test import M, N, FN, T, MAX_B, MAX_Q_TOTAL
 
 
 
-OUT_FILE = "in1.in"
+OUT_FILE = "in.in"
 
 def generate_drones(M, N):
     """Generate UAVs with random bandwidth and phase."""

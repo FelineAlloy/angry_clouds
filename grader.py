@@ -57,7 +57,7 @@ def score_flow(flow, records):
 
 
 def main():
-    in_file_name = "in1.in"
+    in_file_name = "in.in"
     out_file_name = "out.out"
     M, N, T, drones, flows = read_input(in_file_name)
     output = read_output(out_file_name)

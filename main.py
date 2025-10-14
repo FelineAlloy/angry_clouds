@@ -1,7 +1,7 @@
 from file_utils import read_input
 
 def solve() :
-    in_file_name = "in1.in"
+    in_file_name = "in.in"
     out_file_name = "out.out"
 
     out_file = open(out_file_name, 'w')
