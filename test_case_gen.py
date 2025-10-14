@@ -1,25 +1,9 @@
 import random
+from test import M, N, FN, T, MAX_B, MAX_Q_TOTAL
 
-# ===============================
-# CONFIGURABLE MAX CONSTANTS
-# ===============================
-MAX_M = 10 #70          # Max grid width
-MAX_N = 10 #70          # Max grid height
-MAX_FN = 1 #5000       # Max number of flows
-MAX_T = 500         # Max simulation time (seconds)
-MAX_B = 10 #1000.0      # Max peak bandwidth per UAV (Mbps)
-MAX_Q_TOTAL = 100 #3000  # Max total traffic volume per flow (Mbits)
 
-# ===============================
-# TESTCASE RANDOM SETTINGS
-# ===============================
-# You can adjust the scaling factors below if you want smaller test cases
-M = random.randint(2, MAX_M)             # grid width
-N = random.randint(2, MAX_N)             # grid height
-FN = random.randint(1, MAX_FN)           # number of flows
-T = random.randint(2, MAX_T)             # simulation duration (seconds)
-INPUT_FILE = "in.in"
 
+OUT_FILE = "in1.in"
 
 def generate_drones(M, N):
     """Generate UAVs with random bandwidth and phase."""
@@ -30,7 +14,6 @@ def generate_drones(M, N):
             phi = random.randint(0, 9)
             drones.append((x, y, B, phi))
     return drones
-
 
 def generate_flows(FN, M, N, T):
     """Generate random flows based on grid and time limits."""
@@ -53,8 +36,7 @@ def generate_flows(FN, M, N, T):
         flows.append((f, x, y, t_start, s, m1, n1, m2, n2))
     return flows
 
-
-def write_input_file(M, N, FN, T, drones, flows, filename=INPUT_FILE):
+def write_input_file(M, N, FN, T, drones, flows, filename=OUT_FILE):
     """Write input file according to Huawei format."""
     with open(filename, "w") as f:
         f.write(f"{M} {N} {FN} {T}\n")
@@ -63,19 +45,15 @@ def write_input_file(M, N, FN, T, drones, flows, filename=INPUT_FILE):
         for flow in flows:
             f.write(" ".join(map(str, flow)) + "\n")
 
-
-def generate_test(M, N, FN, T):
+def main():
     drones = generate_drones(M, N)
     flows = generate_flows(FN, M, N, T)
     write_input_file(M, N, FN, T, drones, flows)
-
-def main():
-    generate_test()
-    print(f"✅ Random test case generated: '{INPUT_FILE}'")
-    print(f"  Grid: {M}×{N}")
-    print(f"  Flows: {FN}")
-    print(f"  Time duration: {T}s")
-    print(f"  Max B: {MAX_B} Mbps, Max Flow Size: {MAX_Q_TOTAL} Mbits")
+    # print(f"✅ Random test case generated: '{OUT_FILE}'")
+    # print(f"  Grid: {M}×{N}")
+    # print(f"  Flows: {FN}")
+    # print(f"  Time duration: {T}s")
+    # print(f"  Max B: {MAX_B} Mbps, Max Flow Size: {MAX_Q_TOTAL} Mbits")
 
 if __name__ == "__main__":
     main()

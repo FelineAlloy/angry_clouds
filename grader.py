@@ -1,3 +1,5 @@
+import math
+from drone import Drone
 from file_utils import read_input, read_output
 
 def hop_distance(x1, y1, x2, y2):
@@ -53,8 +55,9 @@ def score_flow(flow, records):
 
     return flow_score, s_transmitted
 
-def grade():
-    in_file_name = "in.in"
+
+def main():
+    in_file_name = "in1.in"
     out_file_name = "out.out"
     M, N, T, drones, flows = read_input(in_file_name)
     output = read_output(out_file_name)

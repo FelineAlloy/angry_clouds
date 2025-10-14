@@ -1,7 +1,7 @@
-from file_utils import read_input, read_output
+from file_utils import read_input
 
-def solve():
-    in_file_name = "in.in"
+def solve() :
+    in_file_name = "in1.in"
     out_file_name = "out.out"
 
     out_file = open(out_file_name, 'w')
@@ -10,11 +10,7 @@ def solve():
 
     for time in range(T) :
         # Stores all the flows that are active at time = T.
-        active_flows = []
-        for _, flow in flows.items():
-            # Add do active_flows iff active in time and flow has data to transmit.
-            if flow['t_start'] <= time and flow['s'] > 0 :
-                active_flows.append(flow)
+        active_flows = active_flows = [f for f in flows.values() if f['t_start'] <= time and f['s'] > 0]#[]
 
         # Iterate over all the active flows
         for flow in active_flows :
@@ -30,12 +26,14 @@ def solve():
             if 'hist' not in flow :
                 flow['hist'] = []
 
-            
             prev_drone = flow['prev']
 
             # Stick to prev drone if it exists and is at peak bw to minimise switch cost. 
-            if prev_drone and prev_drone.b(time) == prev_drone.B :
-                curr_drone = prev_drone
+            if prev_drone :
+                slot = (time + prev_drone.phi) % 10
+                is_peak = 3 <= slot <= 6
+                if is_peak and prev_drone.b(time) > 0 : #prev_drone.b(time) == prev_drone.B
+                    curr_drone = prev_drone
 
             else :
                 # Build array of eleigible drones and pick the one with max bw to offer (GREEDY APPROACH).
@@ -52,7 +50,7 @@ def solve():
             flow['s'] -= transmitted
 
             # Store the time and amount of data transmitted at said time.
-            curr_drone.bandwidth_used_in[time] = transmitted
+            curr_drone.bandwidth_used_in[time] = curr_drone.bandwidth_used_in.get(time, 0.0) + transmitted
 
             # Log activity for output
             flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {transmitted}')
@@ -65,8 +63,8 @@ def solve():
 
     out_file.close()
 
-def main():
+def main() :
     solve()
 
-if __name__ == '__main__':
+if __name__ == "__main__" :
     main()
