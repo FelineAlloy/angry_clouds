@@ -1,167 +1,225 @@
-#include <iostream>
-#include <vector>
-#include <string>
-#include <map>
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <iostream>
+#include <limits>
+#include <climits>
+#include <limits.h>
 #include <sstream>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-// A struct to hold the details of a single transmission event for logging.
-struct TransmissionLog {
-    int time;
-    int x;
-    int y;
-    double transmitted_data;
+using namespace std;
+
+/*** -------------------- Problem Types -------------------- ***/
+struct TxRec {
+    int t, x, y;
+    double z; // Mbps sent in second t
 };
 
-// Represents a single drone with its properties and bandwidth state.
 struct Drone {
     int x, y;
     double B;
     int phi;
 
-    // A map to store the bandwidth used at specific time points.
-    // Key: time, Value: used bandwidth
-    std::map<int, double> bandwidth_used_in;
+    // bandwidth already allocated at time t on this UAV
+    unordered_map<int, double> used; // t -> used Mbps
 
-    /**
-     * @brief Calculates the remaining bandwidth of this drone at a given time.
-     * The calculation is based on a 10-slot periodic pattern with a phase shift.
-     * @param t The current time step.
-     * @return The available bandwidth at time t.
-     */
-    double get_remaining_bandwidth(int t) const {
-        int s = (t + phi) % 10;
-        double base_bw = 0.0;
+    inline int slot(int t) const { return (t + phi) % 10; }
 
-        // Bandwidth is only available in slots 2 through 7.
-        if (s >= 2 && s <= 7) {
-            if (s == 2 || s == 7) {
-                base_bw = B / 2.0; // Half bandwidth at the edges of the window.
-            } else {
-                base_bw = B; // Full bandwidth in the peak window.
-            }
-        }
+    inline double base_bw_at_slot(int s) const {
+        // Period: 0..9
+        // 0,1,8,9 => 0; 2,7 => B/2; 3..6 => B
+        if (s == 2 || s == 7) return B * 0.5;
+        if (s >= 3 && s <= 6) return B;
+        return 0.0;
+    }
 
-        double used_bw = 0.0;
-        auto it = bandwidth_used_in.find(t);
-        if (it != bandwidth_used_in.end()) {
-            used_bw = it->second;
-        }
+    inline double base_bw(int t) const {
+        return base_bw_at_slot(slot(t));
+    }
 
-        return std::max(0.0, base_bw - used_bw);
+    inline double avail(int t) const {
+        double cap = base_bw(t);
+        auto it = used.find(t);
+        if (it != used.end()) cap -= it->second;
+        if (cap < 0) cap = 0;
+        return cap;
+    }
+
+    // average base bandwidth over next horizon seconds (phase-aware, no contention)
+    inline double avg_bw_lookahead(int t, int horizon = 5) const {
+        double s = 0.0;
+        for (int k = 0; k < horizon; ++k) s += base_bw(t + k);
+        return s / horizon;
     }
 };
 
-// Represents a data flow with its requirements and transmission history.
 struct Flow {
     int id;
-    int x, y;
+    int sx, sy;     // access UAV (source)
     int t_start;
-    double s; // Remaining data to be sent.
-    int m1, n1, m2, n2; // Geographic area for drone selection.
+    double s_left;  // remaining Mbits
+    int m1, n1, m2, n2; // landing rectangle (inclusive)
+    int last_x = INT_MIN, last_y = INT_MIN; // last chosen landing UAV (for stickiness)
+    vector<TxRec> out;
 
-    // State variables for the simulation
-    Drone* prev_drone = nullptr; // Pointer to the last used drone.
-    std::vector<TransmissionLog> history; // Log of all transmissions for this flow.
+    // cache candidate UAV indexes for faster per-step selection
+    vector<int> candidates;
 };
 
-int main() {
-    // Optimize C++ standard streams for faster input/output.
-    std::ios_base::sync_with_stdio(false);
-    std::cin.tie(NULL);
+/*** -------------------- Helpers -------------------- ***/
+static inline int manhattan(int x1, int y1, int x2, int y2) {
+    return abs(x1 - x2) + abs(y1 - y2);
+}
+
+//int argc, char* argv[]
+int main(int argc, char* argv[]) {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
     int M, N, FN, T;
-    std::cin >> M >> N >> FN >> T;
+    if (!(cin >> M >> N >> FN >> T)) return 0;
 
-    std::vector<Drone> drones;
-    drones.reserve(M * N);
-    for (int i = 0; i < M * N; ++i) {
+    // Read constants from command line (for tuning)
+    // double W_BW = 0.4, W_LOOK = 0.1, W_DIST = 0.4, W_STICK = 0.1, ALPHA_URG = 0.0;
+    // if (argc >= 6) {
+    //     W_BW      = atof(argv[1]);
+    //     W_LOOK    = atof(argv[2]);
+    //     W_DIST    = atof(argv[3]);
+    //     W_STICK   = atof(argv[4]);
+    //     ALPHA_URG = atof(argv[5]);
+    // }
+
+    const int D = M * N;
+    vector<Drone> drones;
+    drones.reserve(D);
+
+    // index map (x,y) -> index
+    vector<vector<int>> idxOf(M, vector<int>(N, -1));
+
+    for (int i = 0; i < D; ++i) {
         int x, y, phi;
         double B;
-        std::cin >> x >> y >> B >> phi;
+        cin >> x >> y >> B >> phi;
         drones.push_back({x, y, B, phi, {}});
+        idxOf[x][y] = i;
     }
 
-    std::vector<Flow> flows;
+    vector<Flow> flows;
     flows.reserve(FN);
+
     for (int i = 0; i < FN; ++i) {
-        int f_id, x, y, t_start, m1, n1, m2, n2;
+        int f, x, y, tstart, m1, n1, m2, n2;
         double s;
-        std::cin >> f_id >> x >> y >> t_start >> s >> m1 >> n1 >> m2 >> n2;
-        flows.push_back({f_id, x, y, t_start, s, m1, n1, m2, n2, nullptr, {}});
+        cin >> f >> x >> y >> tstart >> s >> m1 >> n1 >> m2 >> n2;
+        Flow fl{f, x, y, tstart, s, m1, n1, m2, n2};
+        // Precompute candidate UAV indices within rectangle
+        for (int X = m1; X <= m2; ++X)
+            for (int Y = n1; Y <= n2; ++Y)
+                if (X >= 0 && X < M && Y >= 0 && Y < N)
+                    fl.candidates.push_back(idxOf[X][Y]);
+        flows.push_back(std::move(fl));
     }
 
-    // --- Main Simulation Loop ---
-    for (int time = 0; time < T; ++time) {
-        // Iterate over all flows to process active ones.
-        for (Flow& flow : flows) {
-            // A flow is active if it has started and still has data to send.
-            if (flow.t_start <= time && flow.s > 0) {
-                Drone* current_drone = nullptr;
-                Drone* prev_drone = flow.prev_drone;
+    // bw = 0.4, dist = 0.4, stick = 0.2
+    // ---- Tunable weights (reflecting score formula) ----
+    const double W_BW      = 0.2;  // instantaneous available bandwidth
+    const double W_LOOK    = 0.25;  // 10s lookahead average
+    const double W_DIST    = 0.6;  // prefer short distance (higher score)
+    const double W_STICK   = 0.125;  // avoid switching landing UAVs
+    const double ALPHA_URG = 0.05;  // urgency decay per second since t_start
+    const double EPS       = 1e-12;
 
-                // --- Drone Selection Logic ---
-                // 1. Prioritize sticking with the previous drone if it's in a peak slot.
-                if (prev_drone) {
-                    int slot = (time + prev_drone->phi) % 10;
-                    bool is_peak = (slot >= 3 && slot <= 6);
-                    if (is_peak && prev_drone->get_remaining_bandwidth(time) > 0) {
-                        current_drone = prev_drone;
-                    }
+    // precompute max B among drones to normalize bandwidth terms
+    double Bmax = 0.0;
+    for (auto &d : drones) Bmax = max(Bmax, d.B > 0 ? d.B : 0.0);
+    if (Bmax < EPS) Bmax = 1.0;
+
+    // To improve delay + fairness: process active flows in SRPT-ish order each second
+    vector<int> activeIdx; activeIdx.reserve(FN);
+
+    for (int t = 0; t < T; ++t) {
+        activeIdx.clear();
+        for (int i = 0; i < FN; ++i) {
+            if (flows[i].s_left > EPS && flows[i].t_start <= t) activeIdx.push_back(i);
+        }
+
+        // Sort by "tightness": smaller remaining first (SRPT flavor)
+        sort(activeIdx.begin(), activeIdx.end(), [&](int a, int b){
+            if (flows[a].s_left == flows[b].s_left) return flows[a].id < flows[b].id;
+            return flows[a].s_left < flows[b].s_left;
+        });
+
+        // For each active flow, pick best landing UAV using multi-objective utility
+        for (int fi : activeIdx) {
+            Flow &F = flows[fi];
+            if (F.s_left <= EPS) continue;
+
+            double bestScore = -1e100;
+            int bestDroneIdx = -1;
+
+            // urgency factor to bias earlier transmission (improves delay score)
+            double urg = 1.0 / (1.0 + ALPHA_URG * max(0, t - F.t_start));
+
+            for (int dIdx : F.candidates) {
+                const Drone &D = drones[dIdx];
+                // skip if base is zero at this slot to prune search
+                if (D.base_bw(t) <= EPS) continue;
+
+                double avail = D.avail(t);           // normalized by Bmax next
+                if (avail <= EPS) continue;
+
+                double look = D.avg_bw_lookahead(t); // 0..B
+                int dist = manhattan(F.sx, F.sy, D.x, D.y);
+                double distTerm = 1.0 / (1.0 + (double)dist); // higher is better (shorter)
+
+                double stick = (F.last_x == D.x && F.last_y == D.y) ? 1.0 : 0.0;
+
+                double score =
+                    W_BW   * (avail / Bmax) +
+                    W_LOOK * (look  / Bmax) +
+                    W_DIST * distTerm +
+                    W_STICK* stick;
+
+                score *= urg;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestDroneIdx = dIdx;
                 }
+            }
 
-                // 2. If no drone yet, find the best available one.
-                if (!current_drone) {
-                    Drone* best_drone = nullptr;
-                    double max_bw = -1.0;
+            if (bestDroneIdx == -1) {
+                // No capacity anywhere in window this second; skip.
+                continue;
+            }
 
-                    // Find all eligible drones and select the one with the most bandwidth.
-                    for (Drone& d : drones) {
-                        if (d.x >= flow.m1 && d.x <= flow.m2 &&
-                            d.y >= flow.n1 && d.y <= flow.n2) {
-                            
-                            double bw = d.get_remaining_bandwidth(time);
-                            if (bw > max_bw) {
-                                max_bw = bw;
-                                best_drone = &d;
-                            }
-                        }
-                    }
-                    current_drone = best_drone;
-                }
+            Drone &chosen = drones[bestDroneIdx];
+            double canSend = min(chosen.avail(t), F.s_left);
+            if (canSend > EPS) {
+                chosen.used[t] += canSend;
+                F.s_left -= canSend;
 
-                // If a suitable drone was found, perform the transmission.
-                if (current_drone) {
-                    double available_bw = current_drone->get_remaining_bandwidth(time);
-                    double amount_to_transmit = std::min(available_bw, flow.s);
+                // update stickiness anchor
+                F.last_x = chosen.x;
+                F.last_y = chosen.y;
 
-                    if (amount_to_transmit > 0) {
-                        flow.s -= amount_to_transmit;
-                        current_drone->bandwidth_used_in[time] += amount_to_transmit;
-                        flow.prev_drone = current_drone;
-                        flow.history.push_back({time, current_drone->x, current_drone->y, amount_to_transmit});
-                    }
-                }
+                F.out.push_back({t, chosen.x, chosen.y, canSend});
             }
         }
     }
 
-    // --- Output Generation ---
-    std::stringstream ss;
-    // Set floating point precision for the entire output stream.
-    ss << std::fixed << std::setprecision(6);
-
-    for (const auto& flow : flows) {
-        ss << flow.id << " " << flow.history.size() << "\n";
-        for (const auto& log : flow.history) {
-            ss << log.time << " " << log.x << " " << log.y << " " << log.transmitted_data << "\n";
+    // ---- Output per spec ----
+    cout.setf(std::ios::fixed); cout << setprecision(6);
+    for (const auto &F : flows) {
+        cout << F.id << " " << F.out.size() << "\n";
+        for (const auto &rec : F.out) {
+            cout << rec.t << " " << rec.x << " " << rec.y << " " << rec.z << "\n";
         }
     }
-
-    // Print the entire result at once.
-    std::cout << ss.str();
 
     return 0;
 }

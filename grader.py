@@ -20,7 +20,7 @@ def score_flow(flow, records):
     delay_score = 0
     Tdelay = 10
     for t, _, _, z in records:
-        delay_score += (Tdelay / (t + Tdelay - flow['t_start'])) * (z / s_total)
+        delay_score += (Tdelay / (t + Tdelay - flow['t_start'] + 1e-10)) * (z / s_total)
 
     # 3. Transmission Distance Score
     dist_score = 0
@@ -74,8 +74,8 @@ def main():
     print(f"Total Score: {total_score:.3f}")
 
 
-def main():
-    grade()
+# def grade():
+    # main()
 
 if __name__ == "__main__":
     main()
