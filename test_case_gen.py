@@ -1,9 +1,19 @@
 import random
-from test import M, N, FN, T, MAX_B, MAX_Q_TOTAL
+# from test import M, N, FN, T, MAX_B, MAX_Q_TOTAL
 
+MAX_M = 70 #70          # Max grid width
+MAX_N = 70 #70          # Max grid height
+MAX_FN = 5000 #5000       # Max number of flows
+MAX_T = 500         # Max simulation time (seconds)
+MAX_B = 1000 #1000.0      # Max peak bandwidth per UAV (Mbps)
+MAX_Q_TOTAL = 100 #3000  # Max total traffic volume per flow (Mbits)
 
+M = random.randint(2, MAX_M)             # grid width
+N = random.randint(2, MAX_N)             # grid height
+FN = random.randint(1, MAX_FN)           # number of flows
+T = random.randint(2, MAX_T) 
 
-OUT_FILE = "in.in"
+OUT_FILE = "in1.in"
 
 def generate_drones(M, N):
     """Generate UAVs with random bandwidth and phase."""
