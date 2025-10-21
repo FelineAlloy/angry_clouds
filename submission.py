@@ -109,7 +109,7 @@ for time in range(T) :
         curr_drone.bandwidth_used_in[time] = curr_drone.bandwidth_used_in.get(time, 0.0) + transmitted
 
         # Log activity for output
-        flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {transmitted}')
+        flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {round(transmitted)}')
 
         # If all flow data is transmitted then write to output
         if flow['s'] == 0 :
