@@ -63,8 +63,6 @@ def read_input(path=None):
 
 M, N, T, drones, flows = read_input()
 
-out_lines = []
-
 for time in range(T) :
     # Stores all the flows that are active at time = T.
     active_flows = active_flows = [f for f in flows.values() if f['t_start'] <= time and f['s'] > 0]#[]
@@ -85,17 +83,20 @@ for time in range(T) :
 
         prev_drone = flow['prev']
 
-        if prev_drone :
+        curr_drone = None
+        if prev_drone:
             slot = (time + prev_drone.phi) % 10
             is_peak = 3 <= slot <= 6
-            if is_peak and prev_drone.b(time) > 0 : #prev_drone.b(time) == prev_drone.B
+            if is_peak and prev_drone.b(time) > 0:
                 curr_drone = prev_drone
-
-        else :
-            # Build array of eleigible drones and pick the one with max bw to offer (GREEDY APPROACH).
-            eligible_drones = [d for d in drones if d.x in range(flow['m1'], flow['m2']+1) and d.y in range(flow['n1'], flow['n2']+1) and d.b(time)>0]
-            curr_drone = max(eligible_drones, key = lambda x: x.b(time)) if eligible_drones else None
-
+        if curr_drone is None:
+            eligible_drones = [
+                d for d in drones
+                if d.x in range(flow['m1'], flow['m2']+1)
+                and d.y in range(flow['n1'], flow['n2']+1)
+                and d.b(time) > 0
+            ]
+            curr_drone = max(eligible_drones, key=lambda x: x.b(time)) if eligible_drones else None
         # Skip to next flow if no available drones.
         if not curr_drone : 
             continue
@@ -109,13 +110,19 @@ for time in range(T) :
         curr_drone.bandwidth_used_in[time] = curr_drone.bandwidth_used_in.get(time, 0.0) + transmitted
 
         # Log activity for output
-        flow['hist'].append(f'{time} {curr_drone.x} {curr_drone.y} {round(transmitted)}')
+        flow['hist'].append((time, curr_drone.x, curr_drone.y, float(transmitted)))
 
-        # If all flow data is transmitted then write to output
-        if flow['s'] == 0 :
-            out_lines.append(f"{flow['id']} {len(flow['hist'])}")
-            for h in flow['hist'] :
-                out_lines.append(f'{h}')
+# === AFTER the time loop, ALWAYS emit every flow ===
+out_lines = []
+for flow in flows.values():
+    # Ensure hist exists
+    hist = flow.get('hist', [])
+    # Header line: f p
+    out_lines.append(f"{int(flow['id'])} {int(len(hist))}")
+    # p lines: t x y z (z must be double)
+    for (t, x, y, z) in hist:
+        # enforce int32 for t, x, y and double for z
+        out_lines.append(f"{int(t)} {int(x)} {int(y)} {z:.6f}")
 
 sys.stdout.write("\n".join(out_lines))
 sys.stdout.flush()
